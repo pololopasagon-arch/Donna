@@ -4,10 +4,11 @@ import feedparser
 from groq import Groq
 import json
 import time
+import os
 
 app = Flask(__name__)
 
-GROQ_API_KEY = ""
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
 
 INDICES = {
     "IBEX 35":    "^IBEX",
