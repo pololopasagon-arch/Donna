@@ -1,0 +1,6 @@
+flask
+yfinance
+feedparser
+groq
+requests
+gunicorn
