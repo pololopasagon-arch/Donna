@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Donna</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+    :root {
+      --bg: #000;
+      --bg2: #1c1c1e;
+      --bg3: #2c2c2e;
+      --label: #fff;
+      --label2: #ebebf599;
+      --label3: #ebebf54d;
+      --sep: rgba(255,255,255,0.08);
+      --blue: #0a84ff;
+      --green: #30d158;
+      --red: #ff453a;
+      --gray: #8e8e93;
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--label);
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+      height: 100dvh;
+      overflow: hidden;
+    }
+
+    #main-view, #detail-view {
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    #detail-view { display: none; }
+
+    /* ── HEADER ── */
+    #header {
+      padding-top: calc(var(--safe-top) + 20px);
+      padding-left: 20px;
+      padding-right: 20px;
+      padding-bottom: 10px;
+      flex-shrink: 0;
+    }
+    #greeting {
+      font-size: 30px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      color: var(--label);
+    }
+    #datestamp {
+      font-size: 13px;
+      color: var(--gray);
+      margin-top: 2px;
+    }
+
+    /* ── SECTION LABEL ── */
+    .section-label {
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      color: var(--gray);
+      text-transform: uppercase;
+      padding: 12px 20px 6px;
+      flex-shrink: 0;
+    }
+
+    /* ── MARKETS ── */
+    #markets-strip {
+      display: flex;
+      overflow-x: auto;
+      scroll-snap-type: x mandatory;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+      padding: 4px 20px 12px;
+      gap: 8px;
+      flex-shrink: 0;
+      border-bottom: 0.5px solid var(--sep);
+    }
+    #markets-strip::-webkit-scrollbar { display: none; }
+
+    .market-item {
+      scroll-snap-align: start;
+      flex-shrink: 0;
+      border-radius: 12px;
+      padding: 10px 14px;
+      min-width: 86px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .market-item.up   { background: rgba(48,209,88,0.15); }
+    .market-item.down { background: rgba(255,69,58,0.15); }
+    .market-item.flat { background: var(--bg2); }
+
+    .market-name { font-size: 11px; font-weight: 500; color: var(--gray); }
+    .market-pct  { font-size: 17px; font-weight: 600; letter-spacing: -0.3px; }
+    .up   .market-pct { color: var(--green); }
+    .down .market-pct { color: var(--red); }
+    .flat .market-pct { color: var(--gray); }
+
+    /* ── NEWS ── */
+    #news-list {
+      flex: 1;
+      overflow-y: auto;
+      scrollbar-width: none;
+      padding-bottom: calc(var(--safe-bottom) + 20px);
+    }
+    #news-list::-webkit-scrollbar { display: none; }
+
+    .news-item {
+      padding: 13px 20px;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      cursor: pointer;
+      border-bottom: 0.5px solid var(--sep);
+    }
+    .news-item:active { background: rgba(255,255,255,0.05); }
+
+    .news-num {
+      font-size: 13px;
+      font-weight: 400;
+      color: var(--label3);
+      padding-top: 1px;
+      min-width: 20px;
+      font-variant-numeric: tabular-nums;
+    }
+    .news-body   { flex: 1; }
+    .news-source {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--label3);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 3px;
+    }
+    .news-title {
+      font-size: 15px;
+      font-weight: 400;
+      line-height: 1.38;
+      color: var(--label);
+      letter-spacing: -0.1px;
+    }
+    .news-arrow {
+      color: var(--label3);
+      font-size: 20px;
+      font-weight: 300;
+      padding-top: 0px;
+      align-self: center;
+    }
+
+    /* ── DETAIL NAV BAR ── */
+    #detail-navbar {
+      padding-top: calc(var(--safe-top) + 8px);
+      padding-left: 16px;
+      padding-right: 16px;
+      padding-bottom: 8px;
+      flex-shrink: 0;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      background: rgba(0,0,0,0.85);
+      border-bottom: 0.5px solid var(--sep);
+    }
+    #back-btn {
+      background: none;
+      border: none;
+      color: var(--blue);
+      font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+      font-size: 17px;
+      font-weight: 400;
+      cursor: pointer;
+      padding: 4px 0;
+      display: flex;
+      align-items: center;
+      gap: 2px;
+    }
+
+    /* ── DETAIL CONTENT ── */
+    #detail-scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px 20px calc(var(--safe-bottom) + 40px);
+      scrollbar-width: none;
+    }
+    #detail-scroll::-webkit-scrollbar { display: none; }
+
+    #detail-source {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--gray);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    #detail-headline {
+      font-size: 24px;
+      font-weight: 700;
+      line-height: 1.25;
+      color: var(--label);
+      letter-spacing: -0.5px;
+      margin-bottom: 28px;
+    }
+
+    .article-section { margin-bottom: 24px; }
+    .article-section-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--gray);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+      padding-bottom: 8px;
+      border-bottom: 0.5px solid var(--sep);
+    }
+    .article-section-body {
+      font-size: 16px;
+      line-height: 1.6;
+      color: var(--label2);
+      letter-spacing: -0.1px;
+    }
+    .article-section-body p { margin-bottom: 10px; }
+
+    /* ── LOADING ── */
+    #loading-dots { display: flex; gap: 6px; padding: 40px 0; }
+    .dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--bg3);
+      animation: pulse 1.2s ease-in-out infinite;
+    }
+    .dot:nth-child(2) { animation-delay: 0.15s; }
+    .dot:nth-child(3) { animation-delay: 0.3s; }
+    @keyframes pulse { 0%,100%{opacity:0.2} 50%{opacity:1} }
+  </style>
+</head>
+<body>
+
+  <div id="main-view">
+    <div id="header">
+      <div id="greeting"></div>
+      <div id="datestamp"></div>
+    </div>
+    <div class="section-label">Bolsas</div>
+    <div id="markets-strip">
+      <div class="market-item flat">
+        <span class="market-name">—</span>
+        <span class="market-pct">—</span>
+      </div>
+    </div>
+    <div class="section-label">Titulares</div>
+    <div id="news-list">
+      <div style="padding:20px;color:#48484a;font-size:14px">Cargando...</div>
+    </div>
+  </div>
+
+  <div id="detail-view">
+    <div id="detail-navbar">
+      <button id="back-btn" onclick="goBack()">‹ Inicio</button>
+    </div>
+    <div id="detail-scroll">
+      <div id="detail-source"></div>
+      <div id="detail-headline"></div>
+      <div id="detail-body"></div>
+    </div>
+  </div>
+
+  <script>
+    const h = new Date().getHours();
+    const g = h < 13 ? "Buenos días" : h < 21 ? "Buenas tardes" : "Buenas noches";
+    document.getElementById("greeting").textContent = g + ", Gonzalo";
+    document.getElementById("datestamp").textContent =
+      new Date().toLocaleDateString("es-ES", { weekday:"long", day:"numeric", month:"long" });
+
+    fetch("/api/markets").then(r => r.json()).then(data => {
+      const strip = document.getElementById("markets-strip");
+      strip.innerHTML = data.map(m => {
+        if (m.pct === null) return "";
+        const cls  = m.pct > 0 ? "up" : m.pct < 0 ? "down" : "flat";
+        const sign = m.pct > 0 ? "+" : "";
+        return `<div class="market-item ${cls}">
+          <span class="market-name">${m.name}</span>
+          <span class="market-pct">${sign}${m.pct.toFixed(2)}%</span>
+        </div>`;
+      }).join("");
+    });
+
+    let articlesData = [];
+
+    fetch("/api/news").then(r => r.json()).then(data => {
+      articlesData = data;
+      const list = document.getElementById("news-list");
+      list.innerHTML = data.map((n, i) => `
+        <div class="news-item" onclick="openArticle(${i})">
+          <span class="news-num">${String(i+1).padStart(2,"0")}</span>
+          <div class="news-body">
+            <div class="news-source">${n.source}</div>
+            <div class="news-title">${n.title}</div>
+          </div>
+          <span class="news-arrow">›</span>
+        </div>
+      `).join("");
+    });
+
+    function openArticle(index) {
+      const n = articlesData[index];
+      document.getElementById("main-view").style.display = "none";
+      document.getElementById("detail-view").style.display = "flex";
+      document.getElementById("detail-source").textContent = n.source;
+      document.getElementById("detail-headline").textContent = n.title;
+      document.getElementById("detail-body").innerHTML = `
+        <div id="loading-dots">
+          <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+        </div>`;
+      fetch("/api/article", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: n.title, summary: n.summary, source: n.source })
+      })
+      .then(r => r.json())
+      .then(data => renderArticle(data.content));
+    }
+
+    function renderArticle(text) {
+      const sections = ["CONTEXTO", "QUÉ HA PASADO", "POR QUÉ IMPORTA", "QUÉ VIGILAR"];
+      const result = {};
+      let current = null;
+      text.split("\n").forEach(line => {
+        const clean = line.trim().replace(/^#+\s*/, '').replace(/\*\*/g, '').trim();
+        const matched = sections.find(s => clean.toUpperCase() === s);
+        if (matched) {
+          current = matched;
+          result[current] = "";
+        } else if (current && clean) {
+          result[current] += (result[current] ? "\n" : "") + clean;
+        }
+      });
+
+      const hasContent = Object.values(result).some(v => v.length > 0);
+      if (!hasContent) {
+        const paras = text.split("\n").filter(p => p.trim())
+          .map(p => `<p>${p.trim().replace(/\*\*/g, '')}</p>`).join("");
+        document.getElementById("detail-body").innerHTML =
+          `<div class="article-section"><div class="article-section-body">${paras}</div></div>`;
+        return;
+      }
+
+      let html = "";
+      sections.forEach(s => {
+        if (result[s]) {
+          const paras = result[s].split("\n").map(p => `<p>${p}</p>`).join("");
+          html += `<div class="article-section">
+            <div class="article-section-label">${s}</div>
+            <div class="article-section-body">${paras}</div>
+          </div>`;
+        }
+      });
+      document.getElementById("detail-body").innerHTML = html;
+    }
+
+    function goBack() {
+      document.getElementById("detail-view").style.display = "none";
+      document.getElementById("main-view").style.display = "flex";
+    }
+  </script>
+</body>
+</html>
