@@ -25,35 +25,38 @@ RSS_FEEDS = [
 
 news_cache    = {"data": None, "timestamp": 0}
 markets_cache = {"data": None, "timestamp": 0}
-CACHE_TTL     = 300
+CACHE_TTL = 300
 
 @app.route("/")
 def index():
     return render_template("index.html")
+
+@app.route("/api/config")
+def config():
+    return jsonify({"groq_key": os.environ.get("GROQ_API_KEY", "")})
 
 @app.route("/api/markets")
 def markets():
     global markets_cache
     if markets_cache["data"] and (time.time() - markets_cache["timestamp"]) < CACHE_TTL:
         return jsonify(markets_cache["data"])
+
     data = []
     for name, symbol in INDICES.items():
         try:
             t = yf.Ticker(symbol)
-            hist = t.history(period="2d", interval="1d")
+            hist = t.history(period="5d", interval="1d")
+            hist = hist[hist["Close"].notna()]
             if len(hist) >= 2:
-                prev_close = float(hist["Close"].iloc[-2])
-                last_price = float(hist["Close"].iloc[-1])
-            elif len(hist) == 1:
-                prev_close = float(hist["Close"].iloc[0])
-                last_price = float(t.fast_info.last_price)
+                prev  = float(hist["Close"].iloc[-2])
+                price = float(hist["Close"].iloc[-1])
+                pct   = round((price - prev) / prev * 100, 2)
             else:
-                raise ValueError("No data")
-            price = round(last_price, 2)
-            pct   = round((last_price - prev_close) / prev_close * 100, 2)
-            data.append({"name": name, "price": price, "pct": pct})
-        except:
-            data.append({"name": name, "price": None, "pct": None})
+                pct = None
+            data.append({"name": name, "pct": pct})
+        except Exception:
+            data.append({"name": name, "pct": None})
+
     markets_cache["data"]      = data
     markets_cache["timestamp"] = time.time()
     return jsonify(data)
@@ -63,6 +66,7 @@ def news():
     global news_cache
     if news_cache["data"] and (time.time() - news_cache["timestamp"]) < CACHE_TTL:
         return jsonify(news_cache["data"])
+
     articles = []
     for source, url in RSS_FEEDS:
         try:
@@ -74,8 +78,9 @@ def news():
                     "link":    entry.get("link", "#"),
                     "summary": entry.get("summary", "")
                 })
-        except:
+        except Exception:
             pass
+
     articles = articles[:24]
     news_cache["data"]      = articles
     news_cache["timestamp"] = time.time()
