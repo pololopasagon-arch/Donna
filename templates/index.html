@@ -12,8 +12,8 @@
       --bg2: #1c1c1e;
       --bg3: #2c2c2e;
       --label: #fff;
-      --label2: #ebebf599;
-      --label3: #ebebf54d;
+      --label2: rgba(235,235,245,0.6);
+      --label3: rgba(235,235,245,0.3);
       --sep: rgba(255,255,255,0.08);
       --blue: #0a84ff;
       --green: #30d158;
@@ -39,7 +39,6 @@
     }
     #detail-view { display: none; }
 
-    /* ── HEADER ── */
     #header {
       padding-top: calc(var(--safe-top) + 20px);
       padding-left: 20px;
@@ -59,7 +58,6 @@
       margin-top: 2px;
     }
 
-    /* ── SECTION LABEL ── */
     .section-label {
       font-size: 12px;
       font-weight: 600;
@@ -70,7 +68,6 @@
       flex-shrink: 0;
     }
 
-    /* ── MARKETS ── */
     #markets-strip {
       display: flex;
       overflow-x: auto;
@@ -104,7 +101,6 @@
     .down .market-pct { color: var(--red); }
     .flat .market-pct { color: var(--gray); }
 
-    /* ── NEWS ── */
     #news-list {
       flex: 1;
       overflow-y: auto;
@@ -125,7 +121,6 @@
 
     .news-num {
       font-size: 13px;
-      font-weight: 400;
       color: var(--label3);
       padding-top: 1px;
       min-width: 20px;
@@ -151,11 +146,9 @@
       color: var(--label3);
       font-size: 20px;
       font-weight: 300;
-      padding-top: 0px;
       align-self: center;
     }
 
-    /* ── DETAIL NAV BAR ── */
     #detail-navbar {
       padding-top: calc(var(--safe-top) + 8px);
       padding-left: 16px;
@@ -173,15 +166,10 @@
       color: var(--blue);
       font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
       font-size: 17px;
-      font-weight: 400;
       cursor: pointer;
       padding: 4px 0;
-      display: flex;
-      align-items: center;
-      gap: 2px;
     }
 
-    /* ── DETAIL CONTENT ── */
     #detail-scroll {
       flex: 1;
       overflow-y: auto;
@@ -226,7 +214,6 @@
     }
     .article-section-body p { margin-bottom: 10px; }
 
-    /* ── LOADING ── */
     #loading-dots { display: flex; gap: 6px; padding: 40px 0; }
     .dot {
       width: 6px; height: 6px; border-radius: 50%;
@@ -270,12 +257,35 @@
   </div>
 
   <script>
+    const GROQ_KEY = "PEGA_AQUI_TU_KEY";
+    const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
+
+    async function groq(prompt, maxTokens, temperature) {
+      const r = await fetch(GROQ_URL, {
+        method: "POST",
+        headers: {
+          "Authorization": "Bearer " + GROQ_KEY,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          model: "llama-3.1-8b-instant",
+          messages: [{ role: "user", content: prompt }],
+          max_tokens: maxTokens || 1000,
+          temperature: temperature || 0.5
+        })
+      });
+      const data = await r.json();
+      return data.choices[0].message.content;
+    }
+
+    // Saludo
     const h = new Date().getHours();
     const g = h < 13 ? "Buenos días" : h < 21 ? "Buenas tardes" : "Buenas noches";
     document.getElementById("greeting").textContent = g + ", Gonzalo";
     document.getElementById("datestamp").textContent =
       new Date().toLocaleDateString("es-ES", { weekday:"long", day:"numeric", month:"long" });
 
+    // Bolsas
     fetch("/api/markets").then(r => r.json()).then(data => {
       const strip = document.getElementById("markets-strip");
       strip.innerHTML = data.map(m => {
@@ -289,9 +299,23 @@
       }).join("");
     });
 
+    // Titulares
     let articlesData = [];
 
-    fetch("/api/news").then(r => r.json()).then(data => {
+    fetch("/api/news").then(r => r.json()).then(async data => {
+      const titles = data.map((a, i) => `${i+1}. [${a.source}] ${a.title}`).join("\n");
+
+      try {
+        const raw = await groq(
+          `Transforma estos titulares en frases informativas en español (máximo 15 palabras). Incluye SIEMPRE el sujeto concreto: qué empresa, país, índice o activo, y el hecho clave con cifras si las hay. Ejemplo bueno: "Las tecnológicas de EE.UU. caen un 3% por el auge de la IA china DeepSeek". Traduce los que estén en inglés.\n\n${titles}\n\nResponde SOLO con JSON válido, sin texto adicional ni backticks:\n[{"improved": "titular aquí"}, ...]`,
+          2000, 0.3
+        );
+        const improved = JSON.parse(raw);
+        improved.forEach((imp, i) => {
+          if (i < data.length) data[i].title = imp.improved || data[i].title;
+        });
+      } catch(e) {}
+
       articlesData = data;
       const list = document.getElementById("news-list");
       list.innerHTML = data.map((n, i) => `
@@ -306,7 +330,8 @@
       `).join("");
     });
 
-    function openArticle(index) {
+    // Abrir artículo
+    async function openArticle(index) {
       const n = articlesData[index];
       document.getElementById("main-view").style.display = "none";
       document.getElementById("detail-view").style.display = "flex";
@@ -316,21 +341,27 @@
         <div id="loading-dots">
           <div class="dot"></div><div class="dot"></div><div class="dot"></div>
         </div>`;
-      fetch("/api/article", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: n.title, summary: n.summary, source: n.source })
-      })
-      .then(r => r.json())
-      .then(data => renderArticle(data.content));
+
+      try {
+        const content = await groq(
+          `Eres un periodista económico. Escribe un análisis completo de esta noticia para Gonzalo, estudiante de bachillerato que empieza Economía en CUNEF en septiembre. Nivel básico pero con ganas de aprender.\n\nTitular: ${n.title}\nResumen: ${n.summary}\nFuente: ${n.source}\n\nUsa EXACTAMENTE estos encabezados en este orden, sin asteriscos ni símbolos:\n\nCONTEXTO\nQUÉ HA PASADO\nPOR QUÉ IMPORTA\nQUÉ VIGILAR\n\nEscribe 2-3 párrafos por sección. En español, directo, sin relleno.`,
+          1200, 0.5
+        );
+        renderArticle(content);
+      } catch(e) {
+        document.getElementById("detail-body").innerHTML =
+          `<p style="color:#48484a;font-size:14px">Error al cargar el análisis.</p>`;
+      }
     }
 
+    // Renderizar artículo
     function renderArticle(text) {
       const sections = ["CONTEXTO", "QUÉ HA PASADO", "POR QUÉ IMPORTA", "QUÉ VIGILAR"];
       const result = {};
       let current = null;
+
       text.split("\n").forEach(line => {
-        const clean = line.trim().replace(/^#+\s*/, '').replace(/\*\*/g, '').trim();
+        const clean = line.trim().replace(/^#+\s*/, "").replace(/\*\*/g, "").trim();
         const matched = sections.find(s => clean.toUpperCase() === s);
         if (matched) {
           current = matched;
@@ -343,7 +374,7 @@
       const hasContent = Object.values(result).some(v => v.length > 0);
       if (!hasContent) {
         const paras = text.split("\n").filter(p => p.trim())
-          .map(p => `<p>${p.trim().replace(/\*\*/g, '')}</p>`).join("");
+          .map(p => `<p>${p.trim().replace(/\*\*/g, "")}</p>`).join("");
         document.getElementById("detail-body").innerHTML =
           `<div class="article-section"><div class="article-section-body">${paras}</div></div>`;
         return;
