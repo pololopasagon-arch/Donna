@@ -28,7 +28,7 @@ RSS_FEEDS = [
 
 news_cache    = {"data": None, "timestamp": 0}
 markets_cache = {"data": None, "timestamp": 0}
-CACHE_TTL = 300
+CACHE_TTL = 60
 
 @app.route("/")
 def index():
