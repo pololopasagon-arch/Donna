@@ -39,11 +39,18 @@ def markets():
     data = []
     for name, symbol in INDICES.items():
         try:
-            t     = yf.Ticker(symbol)
-            info  = t.fast_info
-            price = round(info.last_price, 2)
-            prev  = round(info.previous_close, 2)
-            pct   = round((price - prev) / prev * 100, 2)
+            t = yf.Ticker(symbol)
+            hist = t.history(period="2d", interval="1d")
+            if len(hist) >= 2:
+                prev_close = float(hist["Close"].iloc[-2])
+                last_price = float(hist["Close"].iloc[-1])
+            elif len(hist) == 1:
+                prev_close = float(hist["Close"].iloc[0])
+                last_price = float(t.fast_info.last_price)
+            else:
+                raise ValueError("No data")
+            price = round(last_price, 2)
+            pct   = round((last_price - prev_close) / prev_close * 100, 2)
             data.append({"name": name, "price": price, "pct": pct})
         except:
             data.append({"name": name, "price": None, "pct": None})
