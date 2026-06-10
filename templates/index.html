@@ -221,13 +221,14 @@ margin: 12px 20px;
 <div id="greeting"></div>
 <div id="datestamp"></div>
 </div>
-<div class="section-label">Bolsas</div>
-<div id="markets-strip">
-<div class="market-item flat"><span class="market-name">—</span><span class="market-pct">—</span></div>
+<div id="loading-screen" style="flex:1;display:flex;align-items:center;justify-content:center;">
+<div style="display:flex;gap:6px;"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
 </div>
+<div id="content-ready" style="display:none;flex-direction:column;flex:1;overflow:hidden;">
+<div class="section-label">Bolsas</div>
+<div id="markets-strip"></div>
 <div class="section-label">Titulares</div>
-<div id="news-list">
-<div style="padding:20px;color:#48484a;font-size:14px">Cargando...</div>
+<div id="news-list"></div>
 </div>
 </div>
 <div id="detail-view">
@@ -278,57 +279,81 @@ async function init() {
     console.warn("No se pudo cargar config:", e);
   }
  
+  // Mostrar contenido solo cuando todo esté listo
+  function showContent() {
+    document.getElementById("loading-screen").style.display = "none";
+    document.getElementById("content-ready").style.display = "flex";
+  }
+ 
+  let marketsReady = false;
+  let newsReady = false;
+  let articlesData = [];
+ 
+  function checkReady() {
+    if (marketsReady && newsReady) showContent();
+  }
+ 
   // Mercados
   fetch("/api/markets").then(r => r.json()).then(data => {
     const strip = document.getElementById("markets-strip");
     const items = data.filter(m => m.pct !== null);
-    if (!items.length) { strip.innerHTML = '<div class="error-msg">Sin datos de mercado</div>'; return; }
-    strip.innerHTML = items.map(m => {
-      const cls = m.pct > 0 ? "up" : m.pct < 0 ? "down" : "flat";
-      const sign = m.pct > 0 ? "+" : "";
-      return `<div class="market-item ${cls}">
-        <span class="market-name">${m.name}</span>
-        <span class="market-pct">${sign}${m.pct.toFixed(2)}%</span>
-      </div>`;
-    }).join("");
+    if (!items.length) {
+      strip.innerHTML = '<div class="error-msg">Sin datos de mercado</div>';
+    } else {
+      strip.innerHTML = items.map(m => {
+        const cls = m.pct > 0 ? "up" : m.pct < 0 ? "down" : "flat";
+        const sign = m.pct > 0 ? "+" : "";
+        return `<div class="market-item ${cls}">
+          <span class="market-name">${m.name}</span>
+          <span class="market-pct">${sign}${m.pct.toFixed(2)}%</span>
+        </div>`;
+      }).join("");
+    }
+    marketsReady = true;
+    checkReady();
   }).catch(() => {
     document.getElementById("markets-strip").innerHTML = '<div class="error-msg">Error mercados</div>';
+    marketsReady = true;
+    checkReady();
   });
  
-  // Noticias
-  let articlesData = [];
+  // Noticias: esperar a Groq antes de mostrar nada
   fetch("/api/news").then(r => r.json()).then(async data => {
     articlesData = data;
-    renderNewsList(data);
-    if (!GROQ_KEY) return;
-    try {
-      const titles = data.map((a, i) => `${i+1}. [${a.source}] ${a.title}`).join("\n");
-      const raw = await groq(
-        `Transforma estos titulares en frases informativas en español, máximo 15 palabras cada una. ` +
-        `Incluye siempre: quién (empresa, país, índice, persona), qué pasó, y cifras si las hay. ` +
-        `Ejemplo: "El BCE sube tipos al 4,5% por inflación persistente en la eurozona". ` +
-        `Traduce los que estén en inglés. Sin comentarios ni explicaciones.\n\n` +
-        `${titles}\n\n` +
-        `Responde ÚnicaMENTE con un array JSON válido, sin backticks ni texto extra:\n` +
-        `[{"i":0,"t":"titular"},{"i":1,"t":"titular"},...]`,
-        2500, 0.3
-      );
-      const cleaned = raw.replace(/```json|```/gi, "").trim();
-      const s = cleaned.indexOf("["), e = cleaned.lastIndexOf("]");
-      if (s !== -1 && e !== -1) {
-        JSON.parse(cleaned.slice(s, e + 1)).forEach(item => {
-          if (typeof item.i === "number" && item.t && data[item.i]) {
-            data[item.i].title = item.t;
-          }
-        });
-        articlesData = data;
-        renderNewsList(data);
+    if (GROQ_KEY) {
+      try {
+        const titles = data.map((a, i) => `${i+1}. [${a.source}] ${a.title}`).join("\n");
+        const raw = await groq(
+          `Transforma estos titulares en frases informativas en español, máximo 15 palabras cada una. ` +
+          `Incluye siempre: quién (empresa, país, índice, persona), qué pasó, y cifras si las hay. ` +
+          `Ejemplo: "El BCE sube tipos al 4,5% por inflación persistente en la eurozona". ` +
+          `Traduce los que estén en inglés. Sin comentarios ni explicaciones.\n\n` +
+          `${titles}\n\n` +
+          `Responde ÚnicaMENTE con un array JSON válido, sin backticks ni texto extra:\n` +
+          `[{"i":0,"t":"titular"},{"i":1,"t":"titular"},...]`,
+          2500, 0.3
+        );
+        const cleaned = raw.replace(/```json|```/gi, "").trim();
+        const s = cleaned.indexOf("["), e = cleaned.lastIndexOf("]");
+        if (s !== -1 && e !== -1) {
+          JSON.parse(cleaned.slice(s, e + 1)).forEach(item => {
+            if (typeof item.i === "number" && item.t && data[item.i]) {
+              data[item.i].title = item.t;
+            }
+          });
+          articlesData = data;
+        }
+      } catch(e) {
+        console.warn("Mejora titulares falló:", e);
       }
-    } catch(e) {
-      console.warn("Mejora titulares falló:", e);
     }
+    renderNewsList(articlesData);
+    newsReady = true;
+    checkReady();
   }).catch(() => {
     document.getElementById("news-list").innerHTML = '<div class="error-msg">Error cargando noticias</div>';
+    newsReady = true;
+    checkReady();
   });
  
   function renderNewsList(data) {
