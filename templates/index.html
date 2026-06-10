@@ -241,160 +241,193 @@ margin: 12px 20px;
 </div>
 </div>
 <script>
-const GROQ_KEY = "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";
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
+let GROQ_KEY = "";
+ 
 async function groq(prompt, maxTokens, temperature) {
-const r = await fetch(GROQ_URL, {
-method: "POST",
-headers: {
-"Authorization": "Bearer " + GROQ_KEY,
-"Content-Type": "application/json"
-},
-body: JSON.stringify({
-model: "llama-3.1-8b-instant",
-messages: [{ role: "user", content: prompt }],
-max_tokens: maxTokens || 1000,
-temperature: temperature || 0.5
-})
-});
-if (!r.ok) throw new Error("Groq " + r.status);
-const data = await r.json();
-return data.choices[0].message.content;
+  const r = await fetch(GROQ_URL, {
+    method: "POST",
+    headers: {
+      "Authorization": "Bearer " + GROQ_KEY,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      model: "llama-3.1-8b-instant",
+      messages: [{ role: "user", content: prompt }],
+      max_tokens: maxTokens || 1000,
+      temperature: temperature || 0.5
+    })
+  });
+  if (!r.ok) throw new Error("Groq " + r.status);
+  const data = await r.json();
+  return data.choices[0].message.content;
 }
+ 
 const h = new Date().getHours();
 document.getElementById("greeting").textContent =
-(h < 13 ? "Buenos días" : h < 21 ? "Buenas tardes" : "Buenas noches") + ", Gonzalo";
+  (h < 13 ? "Buenos días" : h < 21 ? "Buenas tardes" : "Buenas noches") + ", Gonzalo";
 document.getElementById("datestamp").textContent =
-new Date().toLocaleDateString("es-ES", { weekday:"long", day:"numeric", month:"long" });
-fetch("/api/markets").then(r => r.json()).then(data => {
-const strip = document.getElementById("markets-strip");
-const items = data.filter(m => m.pct !== null);
-if (!items.length) { strip.innerHTML = '<div class="error-msg">Sin datos de mercado</div>'; return; }
-strip.innerHTML = items.map(m => {
-const cls = m.pct > 0 ? "up" : m.pct < 0 ? "down" : "flat";
-const sign = m.pct > 0 ? "+" : "";
-return `<div class="market-item ${cls}">
-<span class="market-name">${m.name}</span>
-<span class="market-pct">${sign}${m.pct.toFixed(2)}%</span>
-</div>`;
-}).join("");
-}).catch(() => {
-document.getElementById("markets-strip").innerHTML = '<div class="error-msg">Error mercados</div>';
-});
-let articlesData = [];
-fetch("/api/news").then(r => r.json()).then(async data => {
-articlesData = data;
-renderNewsList(data);
-try {
-const titles = data.map((a, i) => `${i+1}. [${a.source}] ${a.title}`).join("\n");
-const raw = await groq(
-`Transforma estos titulares en frases informativas en español, máximo 15 palabras cada una. ` +
-`Incluye siempre: quién (empresa, país, índice, persona), qué pasó, y cifras si las hay. ` +
-`Ejemplo: "El BCE sube tipos al 4,5% por inflación persistente en la eurozona". ` +
-`Traduce los que estén en inglés. Sin comentarios ni explicaciones.\n\n` +
-`${titles}\n\n` +
-`Responde ÚnicaMENTE con un array JSON válido, sin backticks ni texto extra:\n` +
-`[{"i":0,"t":"titular"},{"i":1,"t":"titular"},...]`,
-2500, 0.3
-);
-const cleaned = raw.replace(/```json|```/gi, "").trim();
-const s = cleaned.indexOf("["), e = cleaned.lastIndexOf("]");
-if (s !== -1 && e !== -1) {
-JSON.parse(cleaned.slice(s, e + 1)).forEach(item => {
-if (typeof item.i === "number" && item.t && data[item.i]) {
-data[item.i].title = item.t;
+  new Date().toLocaleDateString("es-ES", { weekday:"long", day:"numeric", month:"long" });
+ 
+async function init() {
+  // Cargar config (Groq key) antes de cualquier llamada a IA
+  try {
+    const cfg = await fetch("/api/config").then(r => r.json());
+    GROQ_KEY = cfg.groq_key || "";
+  } catch(e) {
+    console.warn("No se pudo cargar config:", e);
+  }
+ 
+  // Mercados
+  fetch("/api/markets").then(r => r.json()).then(data => {
+    const strip = document.getElementById("markets-strip");
+    const items = data.filter(m => m.pct !== null);
+    if (!items.length) { strip.innerHTML = '<div class="error-msg">Sin datos de mercado</div>'; return; }
+    strip.innerHTML = items.map(m => {
+      const cls = m.pct > 0 ? "up" : m.pct < 0 ? "down" : "flat";
+      const sign = m.pct > 0 ? "+" : "";
+      return `<div class="market-item ${cls}">
+        <span class="market-name">${m.name}</span>
+        <span class="market-pct">${sign}${m.pct.toFixed(2)}%</span>
+      </div>`;
+    }).join("");
+  }).catch(() => {
+    document.getElementById("markets-strip").innerHTML = '<div class="error-msg">Error mercados</div>';
+  });
+ 
+  // Noticias
+  let articlesData = [];
+  fetch("/api/news").then(r => r.json()).then(async data => {
+    articlesData = data;
+    renderNewsList(data);
+    if (!GROQ_KEY) return;
+    try {
+      const titles = data.map((a, i) => `${i+1}. [${a.source}] ${a.title}`).join("\n");
+      const raw = await groq(
+        `Transforma estos titulares en frases informativas en español, máximo 15 palabras cada una. ` +
+        `Incluye siempre: quién (empresa, país, índice, persona), qué pasó, y cifras si las hay. ` +
+        `Ejemplo: "El BCE sube tipos al 4,5% por inflación persistente en la eurozona". ` +
+        `Traduce los que estén en inglés. Sin comentarios ni explicaciones.\n\n` +
+        `${titles}\n\n` +
+        `Responde ÚnicaMENTE con un array JSON válido, sin backticks ni texto extra:\n` +
+        `[{"i":0,"t":"titular"},{"i":1,"t":"titular"},...]`,
+        2500, 0.3
+      );
+      const cleaned = raw.replace(/```json|```/gi, "").trim();
+      const s = cleaned.indexOf("["), e = cleaned.lastIndexOf("]");
+      if (s !== -1 && e !== -1) {
+        JSON.parse(cleaned.slice(s, e + 1)).forEach(item => {
+          if (typeof item.i === "number" && item.t && data[item.i]) {
+            data[item.i].title = item.t;
+          }
+        });
+        articlesData = data;
+        renderNewsList(data);
+      }
+    } catch(e) {
+      console.warn("Mejora titulares falló:", e);
+    }
+  }).catch(() => {
+    document.getElementById("news-list").innerHTML = '<div class="error-msg">Error cargando noticias</div>';
+  });
+ 
+  function renderNewsList(data) {
+    document.getElementById("news-list").innerHTML = data.map((n, i) => `
+      <div class="news-item" onclick="openArticle(${i})">
+        <span class="news-num">${String(i+1).padStart(2,"0")}</span>
+        <div class="news-body">
+          <div class="news-source">${esc(n.source)}</div>
+          <div class="news-title">${esc(n.title)}</div>
+        </div>
+        <span class="news-arrow">›</span>
+      </div>
+    `).join("");
+  }
+ 
+  window.openArticle = async function(idx) {
+    const n = articlesData[idx];
+    if (!n) return;
+    document.getElementById("main-view").style.display = "none";
+    document.getElementById("detail-view").style.display = "flex";
+    document.getElementById("detail-source").textContent = n.source;
+    document.getElementById("detail-headline").textContent = n.title;
+    document.getElementById("detail-scroll").scrollTop = 0;
+    document.getElementById("detail-body").innerHTML =
+      `<div id="loading-dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>`;
+ 
+    if (!GROQ_KEY) {
+      document.getElementById("detail-body").innerHTML =
+        `<div class="error-msg">API key no configurada en Render.</div>`;
+      return;
+    }
+ 
+    const ctx = n.summary
+      ? n.summary.replace(/<[^>]*>/g, "").slice(0, 400)
+      : "Sin resumen disponible, analiza a partir del titular.";
+    try {
+      const content = await groq(
+        `Eres un periodista económico español. Analiza esta noticia para Gonzalo, 18 años, ` +
+        `que empieza Economía en CUNEF. Directo, sin relleno, con cifras cuando puedas.\n\n` +
+        `Titular: ${n.title}\nFuente: ${n.source}\nContexto: ${ctx}\n\n` +
+        `Escribe exactamente estos cuatro bloques. El nombre del bloque en su propia línea, solo en mayúsculas:\n\n` +
+        `CONTEXTO\nQUÉ HA PASADO\nPOR QUÉ IMPORTA\nQUÉ VIGILAR\n\n` +
+        `2-3 párrafos por bloque. En español. Sin asteriscos ni markdown.`,
+        1400, 0.5
+      );
+      renderArticle(content);
+    } catch(e) {
+      document.getElementById("detail-body").innerHTML =
+        `<div class="error-msg">Error al cargar el análisis. Revisa la API key.</div>`;
+    }
+  };
 }
-});
-articlesData = data;
-renderNewsList(data);
-}
-} catch(e) {
-console.warn("Mejora titulares falló:", e);
-}
-}).catch(() => {
-document.getElementById("news-list").innerHTML = '<div class="error-msg">Error cargando noticias</div>';
-});
-function renderNewsList(data) {
-document.getElementById("news-list").innerHTML = data.map((n, i) => `
-<div class="news-item" onclick="openArticle(${i})">
-<span class="news-num">${String(i+1).padStart(2,"0")}</span>
-<div class="news-body">
-<div class="news-source">${esc(n.source)}</div>
-<div class="news-title">${esc(n.title)}</div>
-</div>
-<span class="news-arrow">›</span>
-</div>
-`).join("");
-}
-async function openArticle(idx) {
-const n = articlesData[idx];
-if (!n) return;
-document.getElementById("main-view").style.display = "none";
-document.getElementById("detail-view").style.display = "flex";
-document.getElementById("detail-source").textContent = n.source;
-document.getElementById("detail-headline").textContent = n.title;
-document.getElementById("detail-scroll").scrollTop = 0;
-document.getElementById("detail-body").innerHTML =
-`<div id="loading-dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>`;
-const ctx = n.summary
-? n.summary.replace(/<[^>]*>/g, "").slice(0, 400)
-: "Sin resumen disponible, analiza a partir del titular.";
-try {
-const content = await groq(
-`Eres un periodista económico español. Analiza esta noticia para Gonzalo, 18 años, ` +
-`que empieza Economía en CUNEF. Directo, sin relleno, con cifras cuando puedas.\n\n` +
-`Titular: ${n.title}\nFuente: ${n.source}\nContexto: ${ctx}\n\n` +
-`Escribe exactamente estos cuatro bloques. El nombre del bloque en su propia línea, solo en mayúsculas:\n\n` +
-`CONTEXTO\nQUÉ HA PASADO\nPOR QUÉ IMPORTA\nQUÉ VIGILAR\n\n` +
-`2-3 párrafos por bloque. En español. Sin asteriscos ni markdown.`,
-1400, 0.5
-);
-renderArticle(content);
-} catch(e) {
-document.getElementById("detail-body").innerHTML =
-`<div class="error-msg">Error al cargar el análisis. Revisa la API key.</div>`;
-}
-}
+ 
 const SECTION_LABELS = {
-"CONTEXTO": "¿Contexto?",
-"QUÉ HA PASADO": "¿Qué ha pasado?",
-"POR QUÉ IMPORTA": "¿Por qué importa?",
-"QUÉ VIGILAR": "¿Qué vigilar?"
+  "CONTEXTO": "¿Contexto?",
+  "QUÉ HA PASADO": "¿Qué ha pasado?",
+  "POR QUÉ IMPORTA": "¿Por qué importa?",
+  "QUÉ VIGILAR": "¿Qué vigilar?"
 };
+ 
 function renderArticle(text) {
-const SECTIONS = ["CONTEXTO", "QUÉ HA PASADO", "POR QUÉ IMPORTA", "QUÉ VIGILAR"];
-const result = {};
-let current = null;
-text.split("\n").forEach(line => {
-const clean = line.trim().replace(/^#+\s*/, "").replace(/\*\*/g, "").trim();
-const matched = SECTIONS.find(s => clean.toUpperCase() === s);
-if (matched) { current = matched; result[current] = ""; }
-else if (current && clean) result[current] += (result[current] ? "\n" : "") + clean;
-});
-if (!Object.values(result).some(v => v.length > 0)) {
-document.getElementById("detail-body").innerHTML =
-`<div class="article-section"><div class="article-section-body">` +
-text.split("\n").filter(p => p.trim())
-.map(p => `<p>${esc(p.trim().replace(/\*\*/g,""))}</p>`).join("") +
-`</div></div>`;
-return;
+  const SECTIONS = ["CONTEXTO", "QUÉ HA PASADO", "POR QUÉ IMPORTA", "QUÉ VIGILAR"];
+  const result = {};
+  let current = null;
+  text.split("\n").forEach(line => {
+    const clean = line.trim().replace(/^#+\s*/, "").replace(/\*\*/g, "").trim();
+    const matched = SECTIONS.find(s => clean.toUpperCase() === s);
+    if (matched) { current = matched; result[current] = ""; }
+    else if (current && clean) result[current] += (result[current] ? "\n" : "") + clean;
+  });
+  if (!Object.values(result).some(v => v.length > 0)) {
+    document.getElementById("detail-body").innerHTML =
+      `<div class="article-section"><div class="article-section-body">` +
+      text.split("\n").filter(p => p.trim())
+        .map(p => `<p>${esc(p.trim().replace(/\*\*/g,""))}</p>`).join("") +
+      `</div></div>`;
+    return;
+  }
+  document.getElementById("detail-body").innerHTML = SECTIONS.filter(s => result[s]).map(s => `
+    <div class="article-section">
+      <div class="article-section-label">${SECTION_LABELS[s]}</div>
+      <div class="article-section-body">
+        ${result[s].split("\n").filter(p=>p.trim()).map(p=>`<p>${esc(p.trim())}</p>`).join("")}
+      </div>
+    </div>
+  `).join("");
 }
-document.getElementById("detail-body").innerHTML = SECTIONS.filter(s => result[s]).map(s => `
-<div class="article-section">
-<div class="article-section-label">${SECTION_LABELS[s]}</div>
-<div class="article-section-body">
-${result[s].split("\n").filter(p=>p.trim()).map(p=>`<p>${esc(p.trim())}</p>`).join("")}
-</div>
-</div>
-`).join("");
-}
+ 
 function goBack() {
-document.getElementById("detail-view").style.display = "none";
-document.getElementById("main-view").style.display = "flex";
+  document.getElementById("detail-view").style.display = "none";
+  document.getElementById("main-view").style.display = "flex";
 }
+ 
 function esc(s) {
-return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 }
+ 
+init();
 </script>
 </body>
 </html>
+ 
