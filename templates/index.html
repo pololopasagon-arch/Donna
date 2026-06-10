@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Donna</title>
 <link rel="icon" type="image/png" href="/static/donna_icon.png">
+<link rel="apple-touch-icon" href="/static/donna_icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Donna">
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 :root {
@@ -272,7 +276,6 @@ document.getElementById("datestamp").textContent =
   new Date().toLocaleDateString("es-ES", { weekday:"long", day:"numeric", month:"long" });
  
 async function init() {
-  // Cargar config (Groq key) antes de cualquier llamada a IA
   try {
     const cfg = await fetch("/api/config").then(r => r.json());
     GROQ_KEY = cfg.groq_key || "";
@@ -280,7 +283,6 @@ async function init() {
     console.warn("No se pudo cargar config:", e);
   }
  
-  // Mostrar contenido solo cuando todo esté listo
   function showContent() {
     document.getElementById("loading-screen").style.display = "none";
     document.getElementById("content-ready").style.display = "flex";
@@ -294,7 +296,6 @@ async function init() {
     if (marketsReady && newsReady) showContent();
   }
  
-  // Mercados
   fetch("/api/markets").then(r => r.json()).then(data => {
     const strip = document.getElementById("markets-strip");
     const items = data.filter(m => m.pct !== null);
@@ -318,7 +319,6 @@ async function init() {
     checkReady();
   });
  
-  // Noticias: esperar a Groq antes de mostrar nada
   fetch("/api/news").then(r => r.json()).then(async data => {
     articlesData = data;
     if (GROQ_KEY) {
