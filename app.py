@@ -44,9 +44,9 @@ def markets():
             price = round(info.last_price, 2)
             prev  = round(info.previous_close, 2)
             pct   = round((price - prev) / prev * 100, 2)
-            data.append({"name": name, "pct": pct})
+            data.append({"name": name, "price": price, "pct": pct})
         except:
-            data.append({"name": name, "pct": None})
+            data.append({"name": name, "price": None, "pct": None})
     markets_cache["data"]      = data
     markets_cache["timestamp"] = time.time()
     return jsonify(data)
