@@ -7,13 +7,16 @@ import os
 app = Flask(__name__)
 
 INDICES = {
-    "IBEX 35":    "^IBEX",
-    "S&P 500":    "^GSPC",
-    "NASDAQ":     "^IXIC",
-    "Euro Stoxx": "^STOXX50E",
-    "FTSE 100":   "^FTSE",
-    "Nikkei":     "^N225",
-    "DAX":        "^GDAXI",
+    "IBEX 35":       "^IBEX",
+    "S&P 500":       "^GSPC",
+    "Nasdaq 100":    "^NDX",
+    "Dow Jones 30":  "^DJI",
+    "Euro Stoxx 50": "^STOXX50E",
+    "FTSE 100":      "^FTSE",
+    "DAX 40":        "^GDAXI",
+    "CAC 40":        "^FCHI",
+    "Nikkei 225":    "^N225",
+
 }
 
 RSS_FEEDS = [
