@@ -409,11 +409,14 @@ async function init(isRefresh) {
       try {
         const titles = data.map((a, i) => `${i}. [${a.source}] ${a.title}`).join("\n");
         const raw = await groq(
-          `You are a headline formatter. Return ONLY a JSON array. No explanation. No markdown. No backticks.\n` +
+          `You are a Spanish financial headline writer. Return ONLY a JSON array. No explanation. No markdown. No backticks.\n` +
           `Rules:\n` +
-          `- Translate every headline to Spanish\n` +
-          `- Max 15 words per headline\n` +
-          `- Include subject + verb + key fact/figure\n` +
+          `- Write every headline in Spanish, translate if needed. NO English allowed.\n` +
+          `- Max 12 words per headline\n` +
+          `- Style: subject + strong movement verb (caen, suben, se dispara, se hunde, retrocede, avanza, cede, sube, aprueba, reactiva, etc) + brief context\n` +
+          `- Good example: "El oro y la plata caen en los mercados de futuros"\n` +
+          `- Good example: "El BCE sube tipos al 2,25% por primera vez en tres años"\n` +
+          `- Good example: "Santander reactiva depósitos al 2,25% tras la subida del BCE"\n` +
           `- Output format: [{"i":0,"t":"..."},{"i":1,"t":"..."},...]\n\n` +
           `Headlines:\n${titles}`,
           2500, 0.1
