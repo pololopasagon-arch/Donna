@@ -424,7 +424,7 @@ async function init(isRefresh) {
         const s = raw.indexOf("["), e = raw.lastIndexOf("]");
         if (s !== -1 && e !== -1) {
           const parsed = JSON.parse(raw.slice(s, e + 1));
-          const NOISE = ["quién", "qué pasó", "qué ha pasado", "por qué", "vigilar", "contexto", "devuelve", "formato", "ejemplo", "máximo", "backtick"];
+          const NOISE = ["quién", "qué pasó", "qué ha pasado", "por qué", "contexto", "devuelve", "formato", "ejemplo", "máximo", "backtick"];
           parsed.forEach(item => {
             if (typeof item.i === "number" && item.t && data[item.i]) {
               const low = item.t.toLowerCase();
@@ -490,7 +490,7 @@ async function init(isRefresh) {
         `que empieza Economía en CUNEF. Directo, sin relleno, con cifras cuando puedas.\n\n` +
         `Titular: ${n.title}\nFuente: ${n.source}\nContexto: ${ctx}\n\n` +
         `Escribe exactamente estos cuatro bloques. El nombre del bloque en su propia línea, solo en mayúsculas:\n\n` +
-        `CONTEXTO\nQUÉ HA PASADO\nPOR QUÉ IMPORTA\nQUÉ VIGILAR\n\n` +
+        `CONTEXTO\nQUE HA PASADO\nPOR QUE IMPORTA\nQUE VIGILAR\n\n` +
         `2-3 párrafos por bloque. En español. Sin asteriscos ni markdown.`,
         1400, 0.5
       );
@@ -504,13 +504,13 @@ async function init(isRefresh) {
  
 const SECTION_LABELS = {
   "CONTEXTO": "Contexto",
-  "QUÉ HA PASADO": "¿Qué ha pasado?",
-  "POR QUÉ IMPORTA": "¿Por qué importa?",
-  "QUÉ VIGILAR": "¿Qué vigilar?"
+  "QUE HA PASADO": "¿Qué ha pasado?",
+  "POR QUE IMPORTA": "¿Por qué importa?",
+  "QUE VIGILAR": "¿Qué vigilar?"
 };
  
 function renderArticle(text) {
-  const SECTIONS = ["CONTEXTO", "QUÉ HA PASADO", "POR QUÉ IMPORTA", "QUÉ VIGILAR"];
+  const SECTIONS = ["CONTEXTO", "QUE HA PASADO", "POR QUE IMPORTA", "QUE VIGILAR"];
   const result = {};
   let current = null;
   text.split("\n").forEach(line => {
