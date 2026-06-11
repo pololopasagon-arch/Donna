@@ -325,14 +325,13 @@ async function init() {
       try {
         const titles = data.map((a, i) => `${i+1}. [${a.source}] ${a.title}`).join("\n");
         const raw = await groq(
-          `Transforma estos titulares en frases informativas en español, máximo 15 palabras cada una. ` +
-          `Incluye siempre: quién (empresa, país, índice, persona), qué pasó, y cifras si las hay. ` +
-          `Ejemplo: "El BCE sube tipos al 4,5% por inflación persistente en la eurozona". ` +
-          `Traduce los que estén en inglés. Sin comentarios ni explicaciones.\n\n` +
-          `${titles}\n\n` +
-          `Responde ÚnicaMENTE con un array JSON válido, sin backticks ni texto extra:\n` +
-          `[{"i":0,"t":"titular"},{"i":1,"t":"titular"},...]`,
-          2500, 0.3
+          `Reescribe cada titular en español, máximo 15 palabras, con sujeto claro y cifras si las hay. ` +
+          `Traduce los que estén en inglés. ` +
+          `Ejemplo de formato: "El BCE sube tipos al 4,5% por inflación persistente en la eurozona".\n\n` +
+          `TITULARES:\n${titles}\n\n` +
+          `Devuelve SOLO este JSON, sin texto antes ni después, sin backticks:\n` +
+          `[{"i":0,"t":"..."},{"i":1,"t":"..."},...]`,
+          2500, 0.2
         );
         const cleaned = raw.replace(/```json|```/gi, "").trim();
         const s = cleaned.indexOf("["), e = cleaned.lastIndexOf("]");
