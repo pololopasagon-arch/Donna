@@ -432,7 +432,7 @@ async function init(isRefresh) {
             if (typeof item.i === "number" && item.t && data[item.i]) {
               const low = item.t.toLowerCase();
               const dirty = NOISE.some(n => low.includes(n));
-              if (!dirty) data[item.i].title = item.t;
+              if (!dirty) data[item.i].title = item.t.replace(/:[^:]*$/, "").trim();
             }
           });
           articlesData = data;
@@ -457,7 +457,7 @@ async function init(isRefresh) {
       const isDuplicate = seen.some(s => {
         const sWords = s.toLowerCase().split(" ").filter(w => w.length > 4);
         const common = words.filter(w => sWords.includes(w)).length;
-        return common / Math.max(words.length, sWords.length) > 0.5;
+        return common / Math.max(words.length, sWords.length) > 0.35;
       });
       if (!isDuplicate) seen.push(item.title);
       return !isDuplicate;
