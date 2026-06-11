@@ -411,8 +411,10 @@ async function init(isRefresh) {
         const raw = await groq(
           `You are a Spanish financial headline writer. Return ONLY a JSON array. No explanation. No markdown. No backticks.\n` +
           `Rules:\n` +
-          `- Write every headline in Spanish. ALL headlines must be in Spanish, including WSJ and Financial Times. NEVER output English. Translate everything.\n` +
+          `- Write every headline in Spanish, translate if needed. NO English allowed.\n` +
           `- Max 12 words per headline\n` +
+          `- NEVER include quotes or colons in headlines. Rewrite to remove them.\n` +
+          `- NEVER copy the original headline. Always rewrite it: subject + movement verb + context.\n` +
           `- Style: subject + strong movement verb (caen, suben, se dispara, se hunde, retrocede, avanza, cede, sube, aprueba, reactiva, etc) + brief context\n` +
           `- Good example: "El oro y la plata caen en los mercados de futuros"\n` +
           `- Good example: "El BCE sube tipos al 2,25% por primera vez en tres años"\n` +
