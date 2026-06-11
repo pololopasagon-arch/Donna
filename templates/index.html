@@ -412,7 +412,8 @@ async function init(isRefresh) {
           `You are a Spanish financial headline writer. Return ONLY a JSON array. No explanation. No markdown. No backticks.\n` +
           `Rules:\n` +
           `- Write every headline in Spanish, translate if needed. NO English allowed.\n` +
-          `- Max 12 words per headline\n` +
+          `- Max 15 words per headline\n` +
+          `- Keep specific data and figures when available (%, €, numbers).\n` +
           `- NEVER include quotes or colons in headlines. Rewrite to remove them.\n` +
           `- NEVER copy the original headline. Always rewrite it: subject + movement verb + context.\n` +
           `- Style: subject + strong movement verb (caen, suben, se dispara, se hunde, retrocede, avanza, cede, sube, aprueba, reactiva, etc) + brief context\n` +
@@ -440,7 +441,7 @@ async function init(isRefresh) {
         console.warn("Mejora titulares falló:", err);
       }
     }
-    renderNewsList(articlesData);
+    renderNewsList(deduplicate(articlesData));
     newsReady = true;
     checkReady();
   }).catch(() => {
@@ -448,6 +449,20 @@ async function init(isRefresh) {
     newsReady = true;
     checkReady();
   });
+ 
+  function deduplicate(data) {
+    const seen = [];
+    return data.filter(item => {
+      const words = item.title.toLowerCase().split(" ").filter(w => w.length > 4);
+      const isDuplicate = seen.some(s => {
+        const sWords = s.toLowerCase().split(" ").filter(w => w.length > 4);
+        const common = words.filter(w => sWords.includes(w)).length;
+        return common / Math.max(words.length, sWords.length) > 0.5;
+      });
+      if (!isDuplicate) seen.push(item.title);
+      return !isDuplicate;
+    });
+  }
  
   function renderNewsList(data) {
     if (!data.length) {
