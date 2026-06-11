@@ -325,20 +325,24 @@ async function init() {
       try {
         const titles = data.map((a, i) => `${i+1}. [${a.source}] ${a.title}`).join("\n");
         const raw = await groq(
-          `Reescribe cada titular en español, máximo 15 palabras, con sujeto claro y cifras si las hay. ` +
-          `Traduce los que estén en inglés. ` +
-          `Ejemplo de formato: "El BCE sube tipos al 4,5% por inflación persistente en la eurozona".\n\n` +
-          `TITULARES:\n${titles}\n\n` +
-          `Devuelve SOLO este JSON, sin texto antes ni después, sin backticks:\n` +
-          `[{"i":0,"t":"..."},{"i":1,"t":"..."},...]`,
-          2500, 0.2
+          `You are a headline formatter. Return ONLY a JSON array. No explanation. No markdown. No backticks.\n` +
+          `Rules:\n` +
+          `- Translate every headline to Spanish\n` +
+          `- Max 15 words per headline\n` +
+          `- Include subject + verb + key fact/figure\n` +
+          `- Output format: [{"i":0,"t":"..."},{"i":1,"t":"..."},...]\n\n` +
+          `Headlines:\n${titles}`,
+          2500, 0.1
         );
-        const cleaned = raw.replace(/```json|```/gi, "").trim();
-        const s = cleaned.indexOf("["), e = cleaned.lastIndexOf("]");
+        const s = raw.indexOf("["), e = raw.lastIndexOf("]");
         if (s !== -1 && e !== -1) {
-          JSON.parse(cleaned.slice(s, e + 1)).forEach(item => {
+          const parsed = JSON.parse(raw.slice(s, e + 1));
+          const NOISE = ["quién", "qué pasó", "qué ha pasado", "por qué", "vigilar", "contexto", "devuelve", "formato", "ejemplo", "máximo", "backtick"];
+          parsed.forEach(item => {
             if (typeof item.i === "number" && item.t && data[item.i]) {
-              data[item.i].title = item.t;
+              const low = item.t.toLowerCase();
+              const dirty = NOISE.some(n => low.includes(n));
+              if (!dirty) data[item.i].title = item.t;
             }
           });
           articlesData = data;
