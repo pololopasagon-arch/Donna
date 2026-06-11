@@ -432,7 +432,7 @@ async function init(isRefresh) {
             if (typeof item.i === "number" && item.t && data[item.i]) {
               const low = item.t.toLowerCase();
               const dirty = NOISE.some(n => low.includes(n));
-              if (!dirty) data[item.i].title = item.t.replace(/:[^:]*$/, "").trim();
+              if (!dirty) data[item.i].title = item.t;
             }
           });
           articlesData = data;
@@ -441,7 +441,8 @@ async function init(isRefresh) {
         console.warn("Mejora titulares falló:", err);
       }
     }
-    renderNewsList(deduplicate(articlesData));
+    articlesData = deduplicate(articlesData);
+    renderNewsList(articlesData);
     newsReady = true;
     checkReady();
   }).catch(() => {
