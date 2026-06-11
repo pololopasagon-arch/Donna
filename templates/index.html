@@ -261,7 +261,7 @@ async function groq(prompt, maxTokens, temperature) {
       model: "llama-3.1-8b-instant",
       messages: [{ role: "user", content: prompt }],
       max_tokens: maxTokens || 1000,
-      temperature: temperature || 0.5
+      temperature: (temperature !== undefined && temperature !== null) ? temperature : 0.5
     })
   });
   if (!r.ok) throw new Error("Groq " + r.status);
@@ -323,7 +323,7 @@ async function init() {
     articlesData = data;
     if (GROQ_KEY) {
       try {
-        const titles = data.map((a, i) => `${i+1}. [${a.source}] ${a.title}`).join("\n");
+        const titles = data.map((a, i) => `${i}. [${a.source}] ${a.title}`).join("\n");
         const raw = await groq(
           `You are a headline formatter. Return ONLY a JSON array. No explanation. No markdown. No backticks.\n` +
           `Rules:\n` +
@@ -361,6 +361,10 @@ async function init() {
   });
  
   function renderNewsList(data) {
+    if (!data.length) {
+      document.getElementById("news-list").innerHTML = '<div class="error-msg">Sin noticias disponibles</div>';
+      return;
+    }
     document.getElementById("news-list").innerHTML = data.map((n, i) => `
       <div class="news-item" onclick="openArticle(${i})">
         <span class="news-num">${String(i+1).padStart(2,"0")}</span>
